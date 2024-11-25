@@ -1,20 +1,46 @@
 import jsdom from "jsdom";
 import fs from "fs";
-import fetch from "node-fetch";
+import nodeFetch from "node-fetch";
+import slugify from "slugify";
 
 const { JSDOM } = jsdom;
 const delayMili = 500;
 
-async function fetchDomesticProfit(titleSummaryLink) {
-  try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
+async function fetch(url) {
+  if (!fs.existsSync("cache")) {
+    fs.mkdirSync("cache");
+  }
 
+  const fileName = `cache/${slugify(url)}.html`;
+  if (fs.existsSync(fileName)) {
+    const cache = (await fs.promises.readFile(fileName)).toString();
+    return {
+      async text() {
+        return cache;
+      },
+    };
+  }
+
+  //await delay(delayMili);
+
+  console.log("HTTP GET ".concat(url));
+  const response = await nodeFetch(url);
+  const text = await response.text();
+  if (response.status === 200) {
+    await fs.promises.writeFile(fileName, text);
+  } else {
+    throw new Error("HTTP Error!");
+  }
+  response.text = async () => {
+    return text;
+  };
+  return response;
+}
+
+async function fetchDomesticProfit(titleSummaryLink, document) {
+  try {
     const domesticProfitElement = document.querySelector(
-      '.a-section.a-spacing-none .a-size-medium.a-text-bold .money'
+      "br + .a-size-medium.a-text-bold"
     );
 
     if (domesticProfitElement) {
@@ -23,21 +49,18 @@ async function fetchDomesticProfit(titleSummaryLink) {
       return null;
     }
   } catch (error) {
-    console.error(`Erro ao coletar o lucro domestic do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o lucro domestic do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchInternationalProfit(titleSummaryLink) {
+async function fetchInternationalProfit(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
     const internationalProfitElement = document.querySelectorAll(
-      '.a-section.a-spacing-none .a-size-medium.a-text-bold .money'
+      "br + .a-size-medium.a-text-bold"
     )[1]; // Pegando o segundo "money" para o lucro internacional
 
     if (internationalProfitElement) {
@@ -46,21 +69,18 @@ async function fetchInternationalProfit(titleSummaryLink) {
       return null;
     }
   } catch (error) {
-    console.error(`Erro ao coletar o lucro internacional do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o lucro internacional do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchWorldwideProfit(titleSummaryLink) {
+async function fetchWorldwideProfit(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
     const worldwideProfitElement = document.querySelectorAll(
-      '.a-section.a-spacing-none .a-size-medium.a-text-bold .money'
+      "br + .a-size-medium.a-text-bold"
     )[2]; // Pegando o terceiro "money" para o lucro worldwide
 
     if (worldwideProfitElement) {
@@ -69,21 +89,18 @@ async function fetchWorldwideProfit(titleSummaryLink) {
       return null;
     }
   } catch (error) {
-    console.error(`Erro ao coletar o lucro worldwide do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o lucro worldwide do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchDistribuidor(titleSummaryLink) {
+async function fetchDistribuidor(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
     const distribuidorElement = document.querySelector(
-      '.a-section.a-spacing-none.mojo-summary-values.mojo-hidden-from-mobile > .a-section.a-spacing-none:first-child'
+      ".a-section.a-spacing-none.mojo-summary-values.mojo-hidden-from-mobile > .a-section.a-spacing-none:first-child"
     );
 
     if (distribuidorElement) {
@@ -96,21 +113,18 @@ async function fetchDistribuidor(titleSummaryLink) {
       return null;
     }
   } catch (error) {
-    console.error(`Erro ao coletar o distribuidor do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o distribuidor do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchDomesticOpening(titleSummaryLink) {
+async function fetchDomesticOpening(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
     const domesticOpeningElement = document.querySelector(
-      '.a-section.a-spacing-none.mojo-summary-values.mojo-hidden-from-mobile > .a-section.a-spacing-none:nth-child(2) span.money'
+      ".a-section.a-spacing-none.mojo-summary-values.mojo-hidden-from-mobile > .a-section.a-spacing-none:nth-child(2) span.money"
     );
 
     if (domesticOpeningElement) {
@@ -119,29 +133,28 @@ async function fetchDomesticOpening(titleSummaryLink) {
       return null;
     }
   } catch (error) {
-    console.error(`Erro ao coletar o Domestic Opening do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o Domestic Opening do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchReleaseDate(titleSummaryLink) {
+async function fetchReleaseDate(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
-    const releaseDateSections = document.querySelectorAll('.a-section.a-spacing-none');
+    const releaseDateSections = document.querySelectorAll(
+      ".a-section.a-spacing-none"
+    );
 
     for (let section of releaseDateSections) {
-      const spans = section.querySelectorAll('span');
+      const spans = section.querySelectorAll("span");
       for (let span of spans) {
         if (span.textContent.includes("Earliest Release Date")) {
           const releaseDateElement = span.nextElementSibling;
           if (releaseDateElement) {
             let releaseDateText = releaseDateElement.textContent.trim();
-            releaseDateText = releaseDateText.split('\n')[0].trim(); // Pegando o texto antes do \n
+            releaseDateText = releaseDateText.split("\n")[0].trim(); // Pegando o texto antes do \n
             return releaseDateText || null;
           }
         }
@@ -150,23 +163,22 @@ async function fetchReleaseDate(titleSummaryLink) {
 
     return null;
   } catch (error) {
-    console.error(`Erro ao coletar a Earliest Release Date do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar a Earliest Release Date do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
-async function fetchRunningTime(titleSummaryLink) {
+async function fetchRunningTime(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
-    const runningTimeSections = document.querySelectorAll('.a-section.a-spacing-none');
+    const runningTimeSections = document.querySelectorAll(
+      ".a-section.a-spacing-none"
+    );
 
     for (let section of runningTimeSections) {
-      const spans = section.querySelectorAll('span');
+      const spans = section.querySelectorAll("span");
       for (let span of spans) {
         if (span.textContent.includes("Running Time")) {
           const runningTimeElement = span.nextElementSibling;
@@ -180,31 +192,30 @@ async function fetchRunningTime(titleSummaryLink) {
 
     return null;
   } catch (error) {
-    console.error(`Erro ao coletar o tempo de duração do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar o tempo de duração do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
 
 // Função para coletar os gêneros
-async function fetchGenres(titleSummaryLink) {
+async function fetchGenres(titleSummaryLink, document) {
   try {
-    await delay(delayMili);
-    const response = await fetch(titleSummaryLink);
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
-    const genresSections = document.querySelectorAll('.a-section.a-spacing-none');
+    const genresSections = document.querySelectorAll(
+      ".a-section.a-spacing-none"
+    );
 
     for (let section of genresSections) {
-      const spans = section.querySelectorAll('span');
+      const spans = section.querySelectorAll("span");
       for (let span of spans) {
         if (span.textContent.includes("Genres")) {
           const genresElement = span.nextElementSibling;
           if (genresElement) {
             const genresText = genresElement.textContent.trim();
             const genresList = genresText
-              .split("\n")  // Divide por quebras de linha
+              .split("\n") // Divide por quebras de linha
               .map((genre) => genre.trim()) // Remove espaços extras
               .filter((genre) => genre.length > 0); // Filtra valores vazios
 
@@ -216,7 +227,10 @@ async function fetchGenres(titleSummaryLink) {
 
     return null;
   } catch (error) {
-    console.error(`Erro ao coletar os gêneros do link ${titleSummaryLink}:`, error);
+    console.error(
+      `Erro ao coletar os gêneros do link ${titleSummaryLink}:`,
+      error
+    );
     return null;
   }
 }
@@ -227,7 +241,7 @@ function delay(mili) {
 
 async function processarDadosCombinados(jsonPath) {
   try {
-    const rawData = fs.readFileSync(jsonPath, "utf-8");
+    const rawData = await fs.promises.readFile(jsonPath, "utf-8");
     const filmesPorAno = JSON.parse(rawData);
 
     const anos = Object.keys(filmesPorAno);
@@ -244,14 +258,40 @@ async function processarDadosCombinados(jsonPath) {
         const { titleSummaryLink, filmeLink } = filme;
 
         if (titleSummaryLink) {
-          const distribuidor = await fetchDistribuidor(titleSummaryLink);
-          const domesticOpening = await fetchDomesticOpening(titleSummaryLink);
-          const releaseDate = await fetchReleaseDate(titleSummaryLink);
-          const runningTime = await fetchRunningTime(titleSummaryLink);
-          const genres = await fetchGenres(titleSummaryLink); // Adicionando a coleta de gêneros
-          const domesticProfit = await fetchDomesticProfit(titleSummaryLink);
-          const internationalProfit = await fetchInternationalProfit(titleSummaryLink);
-          const worldwideProfit = await fetchWorldwideProfit(titleSummaryLink);
+          const response = await fetch(titleSummaryLink);
+          const html = await response.text();
+          const dom = new JSDOM(html);
+          const document = dom.window.document;
+
+          const distribuidor = await fetchDistribuidor(
+            titleSummaryLink,
+            document
+          );
+          const domesticOpening = await fetchDomesticOpening(
+            titleSummaryLink,
+            document
+          );
+          const releaseDate = await fetchReleaseDate(
+            titleSummaryLink,
+            document
+          );
+          const runningTime = await fetchRunningTime(
+            titleSummaryLink,
+            document
+          );
+          const genres = await fetchGenres(titleSummaryLink, document); // Adicionando a coleta de gêneros
+          const domesticProfit = await fetchDomesticProfit(
+            titleSummaryLink,
+            document
+          );
+          const internationalProfit = await fetchInternationalProfit(
+            titleSummaryLink,
+            document
+          );
+          const worldwideProfit = await fetchWorldwideProfit(
+            titleSummaryLink,
+            document
+          );
 
           filmesComDadosCombinados[ano].push({
             filmeLink,
@@ -283,7 +323,10 @@ async function processarDadosCombinados(jsonPath) {
     }
 
     const jsonContent = JSON.stringify(filmesComDadosCombinados, null, 2);
-    fs.writeFileSync("filmes_com_dados_combinados.json", jsonContent);
+    await fs.promises.writeFile(
+      "filmes_com_dados_combinados.json",
+      jsonContent
+    );
 
     console.log(
       "Dados dos filmes com Distribuidores, Domestic Opening, Earliest Release Date, Running Time, Gêneros e Lucros salvos em filmes_com_dados_combinados.json"

@@ -1,17 +1,49 @@
 import jsdom from "jsdom";
 import fs from "fs";
-import fetch from "node-fetch";
+import nodeFetch from "node-fetch";
+import slugify from "slugify";
 
 const { JSDOM } = jsdom;
 
 const delayMili = 500;
+
+async function fetch(url) {
+  if (!fs.existsSync("cache")) {
+    fs.mkdirSync("cache");
+  }
+
+  const fileName = `cache/${slugify(url)}.html`;
+  if (fs.existsSync(fileName)) {
+    console.log("Hit cache at ".concat(fileName));
+    const cache = (await fs.promises.readFile(fileName)).toString();
+    return {
+      async text() {
+        return cache;
+      },
+    };
+  }
+
+  //await delay(delayMili);
+
+  console.log("HTTP GET ".concat(url));
+  const response = await nodeFetch(url);
+  const text = await response.text();
+  if (response.status === 200) {
+    await fs.promises.writeFile(fileName, text);
+  } else {
+    throw new Error("HTTP Error!");
+  }
+  response.text = async () => {
+    return text;
+  };
+  return response;
+}
 
 async function fetchLinkTitleSummary(filmeLink) {
   try {
     const fullFilmeLink = filmeLink.startsWith("http")
       ? filmeLink
       : `https://www.boxofficemojo.com${filmeLink}`;
-    await delay(delayMili);
     const response = await fetch(fullFilmeLink);
     const html = await response.text();
     const dom = new JSDOM(html);
@@ -80,12 +112,14 @@ async function init() {
 
   for (const ano of anos) {
     console.log(`Coletando dados para o ano ${ano}...`);
-    await delay(delayMili);
     const dadosAno = await fetchFilmesPorAno(ano);
     filmesPorAno[dadosAno.ano] = dadosAno.filmes;
   }
   const jsonContent = JSON.stringify(filmesPorAno, null, 2);
-  fs.writeFileSync("filmes_links_e_title_summary_por_ano.json", jsonContent);
+  await fs.promises.writeFile(
+    "filmes_links_e_title_summary_por_ano.json",
+    jsonContent
+  );
 
   console.log(
     "Links dos filmes e Title Summary salvos em filmes_links_e_title_summary_por_ano.json"
